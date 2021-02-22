@@ -1,3 +1,3 @@
-# Multiple category selection with Riverpod
+# Testing Riverpod
 
-We are explaining Riverpod by rewriting the category selection example: https://bartvwezel.nl/flutter/flutter-riverpod-example-category-selection/
+We are explaining how to test Flutter Applications with Riverpod by rewriting the category selection example: https://bartvwezel.nl/flutter/flutter-riverpod-testing-example/

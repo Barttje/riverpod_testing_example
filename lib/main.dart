@@ -1,104 +1,127 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(ProviderScope(child: MultipleCategorySelection()));
 }
 
-class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<Class1>(
-          create: (_) => Class1(),
-        ),
-        // ProxyProvider<Class1, Class2>(
-        //   update: (context, class1, class2) => Class2(class1),
-        //)
-        ChangeNotifierProxyProvider<Class1, Class2>(
-          create: (BuildContext context) => Class2(null),
-          update: (context, class1, class2) => Class2(class1),
-        ),
-      ],
-      child: MaterialApp(initialRoute: HomePage.id, routes: {
-        HomePage.id: (context) => HomePage(),
-      }),
-    );
-  }
-}
+final categoryListProvider = StateNotifierProvider((_) => createCategoryList([
+      Category("Apple", Colors.red[700]),
+      Category("Orange", Colors.orange[700]),
+      Category("Banana", Colors.yellow[700])
+    ]));
 
-class HomePage extends StatelessWidget {
-  static const String id = 'home_page';
+final selectedCategories = Provider((ref) => ref
+    .watch(categoryListProvider.state)
+    .entries
+    .where((category) => category.value)
+    .map((e) => e.key)
+    .toList());
+
+final allCategories =
+    Provider((ref) => ref.watch(categoryListProvider.state).keys.toList());
+
+final selectedCategory = ScopedProvider<Category>(null);
+
+class MultipleCategorySelection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Consumer2<Class1, Class2>(
-      builder: (context, class1, class2, child) {
-        return Scaffold(
-          backgroundColor: Colors.blueAccent,
-          body: Container(
-            alignment: Alignment.center,
-            color: Colors.blueAccent,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(class1.number.toString()),
-                SizedBox(height: 50),
-                MaterialButton(
-                  color: Colors.deepOrangeAccent,
-                  height: 100,
-                  minWidth: 100,
-                  child: Text(
-                    '5',
-                    style: TextStyle(fontSize: 40),
-                  ),
-                  onPressed: () {
-                    class1.addNumber(5);
-                    class2.addNumberFromClass1();
-                    print("${class1.number} on pressed class1 number");
-                    print(
-                        "${class2.getNumberFromClass1} on pressed class2 number");
-                  },
-                ),
-              ],
+    return MaterialApp(
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
+      home: Scaffold(
+        appBar: AppBar(title: Text("Interactive categories")),
+        body: Column(
+          children: [
+            CategoryFilter(),
+            Container(
+              color: Colors.green,
+              height: 2,
             ),
-          ),
-        );
-      },
+            SelectedCategories()
+          ],
+        ),
+      ),
     );
   }
 }
 
-class Class1 extends ChangeNotifier {
-  int number = 1; //This stays always the same.
-  void addNumber(value) {
-    number = number +
-        value; //after adding value to number, the new calculated number should be stored in number.
-    notifyListeners();
-  }
+class CategoryFilter extends HookWidget {
+  @override
+  Widget build(BuildContext context) {
+    final selectedCategoryList = useProvider(selectedCategories);
+    final categoryList = useProvider(allCategories);
 
-  get getNumber {
-    return number;
+    return Flexible(
+      child: ListView.builder(
+          itemCount: categoryList.length,
+          itemBuilder: (BuildContext context, int index) {
+            return CheckboxListTile(
+              value: selectedCategoryList.contains(categoryList[index]),
+              onChanged: (bool selected) {
+                context.read(categoryListProvider).toggle(categoryList[index]);
+              },
+              title: ProviderScope(overrides: [
+                selectedCategory.overrideWithValue(categoryList[index])
+              ], child: CategoryWidget()),
+            );
+          }),
+    );
   }
 }
 
-class Class2 extends ChangeNotifier {
-  int numberFromClass1;
-
-  Class2(Class1 class1) {
-    if (class1 != null) {
-      numberFromClass1 = class1.getNumber;
-      print("$numberFromClass1 updated");
-    }
+class SelectedCategories extends HookWidget {
+  @override
+  Widget build(BuildContext context) {
+    final categoryList = useProvider(selectedCategories);
+    return Flexible(
+      child: ListView.builder(
+          itemCount: categoryList.length,
+          itemBuilder: (BuildContext context, int index) {
+            return Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ProviderScope(overrides: [
+                  selectedCategory.overrideWithValue(categoryList[index])
+                ], child: CategoryWidget()));
+          }),
+    );
   }
+}
 
-  void addNumberFromClass1() {
-    print("$numberFromClass1 addNumberFromClass1 called");
-    notifyListeners();
+class CategoryWidget extends HookWidget {
+  @override
+  Widget build(BuildContext context) {
+    final category = useProvider(selectedCategory);
+    return Text(
+      category.name,
+      style: TextStyle(color: category.color),
+    );
   }
+}
 
-  get getNumberFromClass1 {
-    return numberFromClass1;
+CategoryList createCategoryList(List<Category> values) {
+  final Map<Category, bool> categories = Map();
+  values.forEach((value) {
+    categories.putIfAbsent(value, () => false);
+  });
+  return CategoryList(categories);
+}
+
+class Category {
+  final String name;
+  final Color color;
+
+  Category(this.name, this.color);
+}
+
+class CategoryList extends StateNotifier<Map<Category, bool>> {
+  CategoryList(Map<Category, bool> state) : super(state);
+
+  void toggle(Category item) {
+    state[item] = !state[item];
+    state = state;
   }
 }
