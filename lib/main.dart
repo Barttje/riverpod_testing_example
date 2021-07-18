@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 void main() {
@@ -7,22 +6,22 @@ void main() {
 }
 
 final categoryListProvider = StateNotifierProvider((_) => createCategoryList([
-      Category("Apple", Colors.red[700]),
-      Category("Orange", Colors.orange[700]),
-      Category("Banana", Colors.yellow[700])
+      Category("Apple", Colors.red[700]!),
+      Category("Orange", Colors.orange[700]!),
+      Category("Banana", Colors.yellow[700]!)
     ]));
 
 final selectedCategories = Provider((ref) => ref
-    .watch(categoryListProvider.state)
+    .watch(categoryListProvider)
     .entries
-    .where((category) => category.value)
+    .where((MapEntry<Category, bool> category) => category.value)
     .map((e) => e.key)
     .toList());
 
 final allCategories =
-    Provider((ref) => ref.watch(categoryListProvider.state).keys.toList());
+    Provider((ref) => ref.watch(categoryListProvider).keys.toList());
 
-final selectedCategory = ScopedProvider<Category>(null);
+final selectedCategory = Provider<Category?>((ref) => null);
 
 class MultipleCategorySelection extends StatelessWidget {
   @override
@@ -49,20 +48,21 @@ class MultipleCategorySelection extends StatelessWidget {
   }
 }
 
-class CategoryFilter extends HookWidget {
+class CategoryFilter extends HookConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    final selectedCategoryList = useProvider(selectedCategories);
-    final categoryList = useProvider(allCategories);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedCategoryList = ref.watch(selectedCategories);
+    final categoryList = ref.watch(allCategories);
 
+    final notifier = ref.watch(categoryListProvider.notifier);
     return Flexible(
       child: ListView.builder(
           itemCount: categoryList.length,
           itemBuilder: (BuildContext context, int index) {
             return CheckboxListTile(
               value: selectedCategoryList.contains(categoryList[index]),
-              onChanged: (bool selected) {
-                context.read(categoryListProvider).toggle(categoryList[index]);
+              onChanged: (bool? selected) {
+                notifier.toggle(categoryList[index]);
               },
               title: ProviderScope(overrides: [
                 selectedCategory.overrideWithValue(categoryList[index])
@@ -73,10 +73,10 @@ class CategoryFilter extends HookWidget {
   }
 }
 
-class SelectedCategories extends HookWidget {
+class SelectedCategories extends HookConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    final categoryList = useProvider(selectedCategories);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoryList = ref.watch(selectedCategories);
     return Flexible(
       child: ListView.builder(
           itemCount: categoryList.length,
@@ -91,19 +91,22 @@ class SelectedCategories extends HookWidget {
   }
 }
 
-class CategoryWidget extends HookWidget {
+class CategoryWidget extends HookConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    final category = useProvider(selectedCategory);
-    return Text(
-      category.name,
-      style: TextStyle(color: category.color),
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final category = ref.watch(selectedCategory);
+    if (category != null) {
+      return Text(
+        category.name,
+        style: TextStyle(color: category.color),
+      );
+    }
+    return Container();
   }
 }
 
 CategoryList createCategoryList(List<Category> values) {
-  final Map<Category, bool> categories = Map();
+  final Map<Category, bool> categories = Map<Category, bool>();
   values.forEach((value) {
     categories.putIfAbsent(value, () => false);
   });
@@ -121,7 +124,10 @@ class CategoryList extends StateNotifier<Map<Category, bool>> {
   CategoryList(Map<Category, bool> state) : super(state);
 
   void toggle(Category item) {
-    state[item] = !state[item];
-    state = state;
+    final currentValue = state[item];
+    if (currentValue != null) {
+      state[item] = !currentValue;
+      state = state;
+    }
   }
 }

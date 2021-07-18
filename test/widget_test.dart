@@ -1,9 +1,3 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility that Flutter provides. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,7 +16,7 @@ void main() {
     var categories = tester.widgetList(find.byType(CategoryWidget));
     expect(categories.length, 3);
 
-    expect((tester.firstWidget(find.byType(Text)) as Text).style.color,
+    expect((tester.firstWidget(find.byType(Text)) as Text).style!.color,
         Colors.red[700]);
     expect((tester.firstWidget(find.byType(Text)) as Text).data, "Apple");
 
@@ -54,26 +48,24 @@ void main() {
           return MaterialApp(home: CategoryWidget());
         })));
 
-    expect((tester.firstWidget(find.byType(Text)) as Text).style.color,
+    expect((tester.firstWidget(find.byType(Text)) as Text).style!.color,
         Colors.green);
     expect((tester.firstWidget(find.byType(Text)) as Text).data, "Pear");
   });
 
   testWidgets('Verify that there is one Category Widget when false',
       (tester) async {
-    final mockStateNotifier = MockStateNotifier();
     final state = Map<Category, bool>();
     state.putIfAbsent(Category("Pear", Colors.green), () => false);
     await tester.pumpWidget(ProviderScope(
         overrides: [
-          categoryListProvider.overrideWithValue(mockStateNotifier),
-          categoryListProvider.state.overrideWithValue(state),
+          categoryListProvider.overrideWithValue(CategoryList(state)),
         ],
         child: HookBuilder(builder: (context) {
           return MaterialApp(home: MultipleCategorySelection());
         })));
 
-    expect((tester.firstWidget(find.byType(Text)) as Text).style.color,
+    expect((tester.firstWidget(find.byType(Text)) as Text).style!.color,
         Colors.green);
     expect((tester.firstWidget(find.byType(Text)) as Text).data, "Pear");
 
@@ -82,13 +74,11 @@ void main() {
   });
 
   testWidgets('Verify there are two category widgets', (tester) async {
-    final mockStateNotifier = MockStateNotifier();
     final state = Map<Category, bool>();
     state.putIfAbsent(Category("Pear", Colors.green), () => true);
     await tester.pumpWidget(ProviderScope(
         overrides: [
-          categoryListProvider.overrideWithValue(mockStateNotifier),
-          categoryListProvider.state.overrideWithValue(state),
+          categoryListProvider.overrideWithValue(CategoryList(state)),
         ],
         child: HookBuilder(builder: (context) {
           return MaterialApp(home: MultipleCategorySelection());
@@ -96,7 +86,7 @@ void main() {
 
     expect((tester.firstWidget(find.byType(Checkbox)) as Checkbox).value, true);
 
-    expect((tester.firstWidget(find.byType(Text)) as Text).style.color,
+    expect((tester.firstWidget(find.byType(Text)) as Text).style!.color,
         Colors.green);
     expect((tester.firstWidget(find.byType(Text)) as Text).data, "Pear");
 
@@ -105,14 +95,13 @@ void main() {
   });
 
   testWidgets('Verify that the toggle is called', (tester) async {
-    final mockStateNotifier = MockStateNotifier();
     final state = Map<Category, bool>();
     final category = Category("Pear", Colors.green);
     state.putIfAbsent(category, () => true);
+    final mockStateNotifier = CategoryList(state);
     await tester.pumpWidget(ProviderScope(
         overrides: [
           categoryListProvider.overrideWithValue(mockStateNotifier),
-          categoryListProvider.state.overrideWithValue(state),
         ],
         child: HookBuilder(builder: (context) {
           return MaterialApp(home: MultipleCategorySelection());
@@ -122,8 +111,6 @@ void main() {
     await tester.tap(find.byWidget(checkbox.first));
     await tester.pump();
 
-    verify(mockStateNotifier.toggle(category)).called(1);
+    expect(mockStateNotifier.state[category], false);
   });
 }
-
-class MockStateNotifier extends Mock implements CategoryList {}
